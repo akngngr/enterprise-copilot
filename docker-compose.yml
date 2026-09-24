@@ -1,0 +1,32 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: copilot_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: copilot_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
+  # This single service now runs API, Streamlit, and Ollama using your custom Dockerfile
+  copilot_app:
+    build: .
+    container_name: copilot_app
+    ports:
+      - "8000:8000"
+      - "8501:8501"
+      # - "11434:11434"
+    environment:
+      # This tells the Python app how to reach the postgres container
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/copilot_db
+      - GEN_MODEL=llama3
+    depends_on:
+      - postgres
+    restart: always
+
+volumes:
+  pgdata:

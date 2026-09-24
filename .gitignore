@@ -1,0 +1,8 @@
+# Python cache generated on run
+__pycache__/
+app/__pycache__/
+
+# Environment & local state files
+.env
+pgdata/
+venv/
