@@ -12,22 +12,24 @@ services:
       - pgdata:/var/lib/postgresql/data
     restart: always
 
-  # Single service running API, Streamlit, and Ollama in one container
   copilot_app:
     build: .
     container_name: copilot_app
     ports:
       - "8000:8000"
       - "8501:8501"
-      # - "11434:11434"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/copilot_db
       - OLLAMA_BASE_URL=http://localhost:11434
       - GEN_MODEL=llama3
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ENABLE_OLLAMA_PULL=${ENABLE_OLLAMA_PULL:-true}
+    volumes:
+      - ollama_data:/root/.ollama
     depends_on:
       - postgres
     restart: always
 
 volumes:
   pgdata:
+  ollama_data:

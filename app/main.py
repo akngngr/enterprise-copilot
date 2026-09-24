@@ -21,6 +21,9 @@ OLLAMA_EMBED_URL = f"{OLLAMA_BASE_URL}/api/embeddings"
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/copilot_db")
 GEN_MODEL = os.getenv("GEN_MODEL", "llama3")
 
+# Runtime Control Flag
+ENABLE_OLLAMA_PULL = os.getenv("ENABLE_OLLAMA_PULL", "false").lower() == "true"
+
 # Gemini Fallback Configurations
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
@@ -58,14 +61,14 @@ Base.metadata.create_all(bind=engine)
 
 
 def query_ollama(prompt: str) -> str:
-    """Attempts generation via local Ollama API."""
+    """Attempts generation via local Ollama API with a tight 2s timeout."""
     payload = {
         "model": GEN_MODEL,
         "prompt": prompt,
         "stream": False
     }
-    # Short timeout (10s) so cloud deployments don't hang before triggering Gemini
-    response = requests.post(OLLAMA_GEN_URL, json=payload, timeout=10)
+    # Tight timeout (2s) so we fail fast if Ollama service/model isn't running
+    response = requests.post(OLLAMA_GEN_URL, json=payload, timeout=2)
     response.raise_for_status()
     return response.json().get("response", "").strip()
 
@@ -135,7 +138,7 @@ async def search_documents(query: str, limit: int = 3, db: Session = Depends(get
 async def ask_copilot(payload: AskRequest, db: Session = Depends(get_db)):
     """
     RAG Pipeline Endpoint: Retrieves relevant document chunks and 
-    prompts the local LLM (Ollama) with automatic fallback to Gemini API.
+    prompts local Ollama (if enabled), with automatic fallback to Gemini API.
     """
     try:
         question = payload.question
@@ -181,19 +184,19 @@ Conversation History:
 User Question: {question}
 Answer:"""
 
-        # 4. Attempt Ollama generation first, fallback to Gemini API
+        # 4. Attempt Generation Logic
         answer_text = ""
-        try:
-            answer_text = query_ollama(prompt)
-        except Exception as ollama_err:
-            print(f"[Fallback Triggered] Ollama failed ({ollama_err}). Switching to Gemini API...")
+        
+        # Only attempt local Ollama if explicitly enabled via environment variable
+        if ENABLE_OLLAMA_PULL:
             try:
+                answer_text = query_ollama(prompt)
+            except Exception as ollama_err:
+                print(f"[Fallback Triggered] Local Ollama failed ({ollama_err}). Switching to Gemini API...")
                 answer_text = query_gemini(prompt)
-            except Exception as gemini_err:
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Both primary (Ollama) and fallback (Gemini) LLM engines failed: {gemini_err}"
-                )
+        else:
+            print("[Cloud Routing] ENABLE_OLLAMA_PULL is false. Routing directly to Gemini API...")
+            answer_text = query_gemini(prompt)
 
         return AskResponse(answer=answer_text, sources=sources)
 
