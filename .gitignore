@@ -1,8 +1,23 @@
-# Python cache generated on run
-__pycache__/
-app/__pycache__/
-
-# Environment & local state files
+# Secrets & Environment Variables
 .env
-pgdata/
+*.env
+
+# Virtual Environment
 venv/
+ENV/
+env/
+
+# Python Caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Temporary Upload Files
+temp_*
+*.pdf
+
+# System & IDE files
+.DS_Store
+.vscode/
+.idea/

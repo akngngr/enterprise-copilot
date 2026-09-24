@@ -12,7 +12,7 @@ services:
       - pgdata:/var/lib/postgresql/data
     restart: always
 
-  # This single service now runs API, Streamlit, and Ollama using your custom Dockerfile
+  # Single service running API, Streamlit, and Ollama in one container
   copilot_app:
     build: .
     container_name: copilot_app
@@ -21,9 +21,10 @@ services:
       - "8501:8501"
       # - "11434:11434"
     environment:
-      # This tells the Python app how to reach the postgres container
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/copilot_db
+      - OLLAMA_BASE_URL=http://localhost:11434
       - GEN_MODEL=llama3
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     depends_on:
       - postgres
     restart: always
