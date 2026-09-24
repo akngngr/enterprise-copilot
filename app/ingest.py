@@ -3,6 +3,7 @@ import requests
 from pypdf import PdfReader
 from sqlalchemy.orm import Session
 from google import genai
+from google.genai.types import EmbedContentConfig
 
 from app.database import SessionLocal
 from app.models import DocumentChunk
@@ -20,21 +21,32 @@ gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 
 def get_gemini_embedding(text: str) -> list:
-    """Generates embeddings using Gemini API (text-embedding-004)."""
+    """Generates 768-dim embeddings using Gemini API (gemini-embedding-001)."""
     if not gemini_client:
         raise ValueError("GEMINI_API_KEY environment variable is not configured.")
     
+    # Notice: model="gemini-embedding-001" and output_dimensionality=768
     response = gemini_client.models.embed_content(
-        model="text-embedding-004",
+        model="gemini-embedding-001",
         contents=text,
+        config=EmbedContentConfig(
+            output_dimensionality=768
+        )
     )
-    return response.embedding.values
+    
+    # Handle response structure cleanly from google-genai SDK
+    if hasattr(response, "embedding") and hasattr(response.embedding, "values"):
+        return list(response.embedding.values)
+    elif hasattr(response, "embeddings") and len(response.embeddings) > 0:
+        return list(response.embeddings[0].values)
+    
+    raise ValueError("Failed to retrieve valid embedding values from Gemini API.")
 
 
 def get_local_embedding(text: str) -> list:
     """
     Generates embeddings using local Ollama if enabled.
-    Falls back gracefully to Gemini API when Ollama is unavailable or missing models.
+    Falls back gracefully to Gemini API when Ollama is unavailable.
     """
     if ENABLE_OLLAMA_PULL:
         try:
@@ -48,7 +60,6 @@ def get_local_embedding(text: str) -> list:
         except Exception as e:
             print(f"[Embedding Fallback] Ollama unreachable ({e}). Switching to Gemini API...")
 
-    # Default cloud embedding path
     return get_gemini_embedding(text)
 
 
@@ -61,7 +72,6 @@ def chunk_text(text: str, max_chars: int = 500) -> list:
     current_chunk = ""
 
     for para in paragraphs:
-        # If a single paragraph is longer than max_chars, force-split it
         if len(para) > max_chars:
             if current_chunk.strip():
                 chunks.append(current_chunk.strip())
@@ -119,11 +129,3 @@ def process_pdf(file_path: str):
         raise e
     finally:
         db.close()
-
-
-if __name__ == "__main__":
-    sample_file = "test.pdf"
-    if os.path.exists(sample_file):
-        process_pdf(sample_file)
-    else:
-        print(f"Place a file named '{sample_file}' in the project root to test the ingestion process.")
