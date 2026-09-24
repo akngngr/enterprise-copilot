@@ -17,7 +17,6 @@ app = FastAPI(title="Enterprise Knowledge & Support Copilot", version="1.0.0")
 # Ollama Configurations
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_GEN_URL = f"{OLLAMA_BASE_URL}/api/generate"
-OLLAMA_EMBED_URL = f"{OLLAMA_BASE_URL}/api/embeddings"
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/copilot_db")
 GEN_MODEL = os.getenv("GEN_MODEL", "llama3")
 
@@ -67,14 +66,13 @@ def query_ollama(prompt: str) -> str:
         "prompt": prompt,
         "stream": False
     }
-    # Tight timeout (2s) so we fail fast if Ollama service/model isn't running
     response = requests.post(OLLAMA_GEN_URL, json=payload, timeout=2)
     response.raise_for_status()
     return response.json().get("response", "").strip()
 
 
 def query_gemini(prompt: str) -> str:
-    """Fallback generation via Google Gemini API."""
+    """Fallback text generation via Google Gemini API."""
     if not gemini_client:
         raise ValueError("GEMINI_API_KEY environment variable is not configured.")
 
@@ -144,7 +142,7 @@ async def ask_copilot(payload: AskRequest, db: Session = Depends(get_db)):
         question = payload.question
         history = payload.history
 
-        # 1. Search top relevant chunks
+        # 1. Search top relevant chunks using shared embedding function
         query_vector = get_local_embedding(question)
         results = db.query(
             DocumentChunk,
@@ -187,7 +185,6 @@ Answer:"""
         # 4. Attempt Generation Logic
         answer_text = ""
         
-        # Only attempt local Ollama if explicitly enabled via environment variable
         if ENABLE_OLLAMA_PULL:
             try:
                 answer_text = query_ollama(prompt)

@@ -1,30 +1,58 @@
 import os
-from pypdf import PdfReader
 import requests
+from pypdf import PdfReader
 from sqlalchemy.orm import Session
+from google import genai
+
 from app.database import SessionLocal
 from app.models import DocumentChunk
 
+# Environment variables & configurations
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-
-OLLAMA_GEN_URL = f"{OLLAMA_BASE_URL}/api/generate"
 OLLAMA_EMBED_URL = f"{OLLAMA_BASE_URL}/api/embeddings"
-EMBEDDING_MODEL = "nomic-embed-text"
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "nomic-embed-text")
+
+ENABLE_OLLAMA_PULL = os.getenv("ENABLE_OLLAMA_PULL", "false").lower() == "true"
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# Initialize Gemini Client if API key is present
+gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
+
+
+def get_gemini_embedding(text: str) -> list:
+    """Generates embeddings using Gemini API (text-embedding-004)."""
+    if not gemini_client:
+        raise ValueError("GEMINI_API_KEY environment variable is not configured.")
+    
+    response = gemini_client.models.embed_content(
+        model="text-embedding-004",
+        contents=text,
+    )
+    return response.embedding.values
+
 
 def get_local_embedding(text: str) -> list:
+    """
+    Generates embeddings using local Ollama if enabled.
+    Falls back gracefully to Gemini API when Ollama is unavailable or missing models.
+    """
+    if ENABLE_OLLAMA_PULL:
+        try:
+            payload = {
+                "model": EMBEDDING_MODEL,
+                "prompt": text
+            }
+            response = requests.post(OLLAMA_EMBED_URL, json=payload, timeout=3)
+            if response.status_code == 200:
+                return response.json().get("embedding")
+        except Exception as e:
+            print(f"[Embedding Fallback] Ollama unreachable ({e}). Switching to Gemini API...")
 
-    payload = {
-        "model": EMBEDDING_MODEL,
-        "prompt": text
-    }
-    response = requests.post(OLLAMA_EMBED_URL, json=payload)
-    if response.status_code == 200:
-        return response.json().get("embedding")
-    else:
-        raise Exception(f"Ollama embedding failed: {response.text}")
+    # Default cloud embedding path
+    return get_gemini_embedding(text)
 
-def chunk_text(text:str, max_chars: int = 500) -> list:
 
+def chunk_text(text: str, max_chars: int = 500) -> list:
     if not text:
         return []
     
@@ -52,8 +80,8 @@ def chunk_text(text:str, max_chars: int = 500) -> list:
         
     return [c for c in chunks if c]
 
-def process_pdf(file_path: str):
 
+def process_pdf(file_path: str):
     if not os.path.exists(file_path):
         print(f"File not found: {file_path}")
         return
@@ -69,7 +97,7 @@ def process_pdf(file_path: str):
             full_text += extracted + "\n"
 
     raw_chunks = chunk_text(full_text)
-    print(f"Split into {len(raw_chunks)} chunks. Generating via Ollama...")
+    print(f"Split into {len(raw_chunks)} chunks. Generating embeddings...")
 
     db: Session = SessionLocal()
     try:
@@ -88,8 +116,10 @@ def process_pdf(file_path: str):
     except Exception as e:
         db.rollback()
         print(f"Error during ingestion transaction: {e}")
+        raise e
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     sample_file = "test.pdf"
