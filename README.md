@@ -14,6 +14,7 @@ A full-stack, local RAG (Retrieval-Augmented Generation) copilot running entirel
 
 ## Project Structure
 
+```text
 enterprise-copilot/
 ├── app/
 │   ├── __init__.py
@@ -22,9 +23,11 @@ enterprise-copilot/
 │   ├── ingest.py         # PDF parsing, chunking, and embedding logic
 │   ├── main.py           # FastAPI application & routing endpoints
 │   └── models.py         # SQLAlchemy ORM models (pgvector schema)
-├── Dockerfile            # FastAPI container build configuration
-├── docker-compose.yml    # Multi-container orchestration (Postgres, Ollama, API)
-└── requirements.txt      # Python dependencies
+├── Dockerfile            # Container build configuration
+├── docker-compose.yml    # Multi-container orchestration (Postgres, App layers)
+├── init_db.py            # Database initialization script
+└── requirements.txt      # Core Python dependencies
+```
 
 ---
 
