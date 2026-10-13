@@ -17,6 +17,7 @@ from app.auth import CurrentUser, get_current_user
 from app.database import get_db
 from app.ingest import get_embedding, process_pdf
 from app.models import Document, DocumentChunk
+from app.seed import drop_seed, ensure_seed_document
 
 app = FastAPI(title="Enterprise Knowledge & Support Copilot", version="2.0.0")
 
@@ -266,6 +267,10 @@ def ingest_document(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # A real upload supersedes the seeded default: drop the seed so the
+    # visitor's own document is the only thing the copilot will answer from.
+    # Without this, /ask/ would blend their PDF with a stranger's profile.
+    drop_seed(db, user.id)
     original_filename = os.path.basename((file.filename or "").replace("\\", "/"))
     if not original_filename or not original_filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported")
@@ -325,6 +330,10 @@ def list_documents(
     user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # The sidebar loads this on every page render, so it is the natural place to
+    # make sure a first-time visitor has something to ask a question about.
+    ensure_seed_document(db, user.id)
+
     documents = (
         db.query(Document)
         .filter(Document.owner_id == user.id)

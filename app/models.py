@@ -1,7 +1,20 @@
 import uuid
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Column, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint, Uuid, func
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    Uuid,
+    func,
+    text,
+)
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -24,6 +37,9 @@ class Document(Base):
     source_filename = Column(String(255), nullable=False)
     content_digest = Column(String(64), nullable=False)
     embedding_model = Column(String(100), nullable=False)
+    # Marks the default profile document that is seeded for a visitor's first
+    # session. It is removed as soon as the visitor uploads a PDF of their own.
+    is_seed = Column(Boolean, nullable=False, server_default=text("false"), default=False)
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     chunks = relationship(
         "DocumentChunk",

@@ -115,6 +115,7 @@ def process_pdf(
     owner_id: str,
     content_digest: str,
     db: Session,
+    is_seed: bool = False,
 ) -> Document:
     print(f"Processing '{original_filename}'...")
     reader = PdfReader(io.BytesIO(file_bytes), strict=True)
@@ -158,6 +159,7 @@ def process_pdf(
         source_filename=original_filename,
         content_digest=content_digest,
         embedding_model=embedding_model,
+        is_seed=is_seed,
     )
     db.add(document)
 

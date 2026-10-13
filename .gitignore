@@ -18,6 +18,10 @@ __pycache__/
 temp_*
 *.pdf
 
+# ...but the seeded default document must ship with the image, otherwise a
+# first-time visitor gets an empty corpus and the copilot answers nothing.
+!seed/profile.pdf
+
 # System & IDE files
 .DS_Store
 .vscode/

@@ -1,0 +1,124 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R 7 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 5537 >>
+stream
+/F2 17.00 Tf (Akin Gungor — Software Engineer ) Tj
+/F1 9.60 Tf (Wilton, NH. akingungor@yahoo.com. linkedin.com/in/akin-gungor. akin-gungor.vercel.app. github.com/akngngr. ) Tj
+/F2 14.00 Tf (Overview ) Tj
+/F1 9.60 Tf (Software engineer with 5+ years building, integrating, and deploying custom software directly inside client ) Tj
+/F1 9.60 Tf (environments for a 7M-user enterprise SaaS platform. Works across Python, C#/.NET, JavaScript/TypeScript and ) Tj
+/F1 9.60 Tf (React, with REST APIs and SQL. Owns the technical relationship inside enterprise client environments, including ) Tj
+/F1 9.60 Tf (Fortune 500 pharmaceutical accounts, debugging live production issues and shipping fixes directly. ) Tj
+/F1 9.60 Tf (Recent focus is applying generative AI to real operational work: a production retrieval-augmented generation ) Tj
+/F1 9.60 Tf (\(RAG\) knowledge system, Azure OpenAI rollout into live client environments, and automated agent workflows for ) Tj
+/F1 9.60 Tf (routing and summarisation. Builds the reusable frameworks teams depend on, including a versioned diagnostic ) Tj
+/F1 9.60 Tf (query library adopted across Support and Engineering. ) Tj
+/F2 14.00 Tf (Current role — AKUMINA, Senior Technical Support Engineer \(April 2022 ) Tj
+/F2 14.00 Tf (to July 2026\) ) Tj
+/F1 9.60 Tf (Embedded engineering lead acting as the technical bridge between product engineering and strategic enterprise ) Tj
+/F1 9.60 Tf (clients on a 7M-user SaaS platform. Functionally owned client-facing software delivery end to end, from initial ) Tj
+/F1 9.60 Tf (scoping through production architecture and code deployment. ) Tj
+/F1 9.60 Tf (Built and shipped a production RAG knowledge retrieval system on Azure OpenAI \(vector database, embedding ) Tj
+/F1 9.60 Tf (pipelines, Azure AI Search\) that indexed unstructured context automatically, cutting search time by 50% and ) Tj
+/F1 9.60 Tf (resolution time by 25%. Designed 5 autonomous agent workflows handling automated routing and ) Tj
+/F1 9.60 Tf (summarisation. ) Tj
+/F1 9.60 Tf (Owned the forward-deployed rollout of Azure OpenAI \(GPT-4.5, DALL-E\) features into live client environments. ) Tj
+/F1 9.60 Tf (Validated end-to-end API connectivity, debugged live integration issues, resolved Azure Front Door firewall and ) Tj
+/F1 9.60 Tf (WAF problems affecting client access, and enabled client teams on new AI tooling. ) Tj
+/F1 9.60 Tf (Built a versioned KQL diagnostic query library adopted across Support and Engineering, reducing root-cause ) Tj
+/F1 9.60 Tf (triage time by 50%. Acted as subject-matter expert for enterprise search across Microsoft 365 components, ) Tj
+/F1 9.60 Tf (resolving search escalations through debugging, code-level fixes and configuration changes. ) Tj
+/F1 9.60 Tf (Shipped custom React components and automated CI/CD deployment pipelines for bespoke client extensions, ) Tj
+/F1 9.60 Tf (incorporating automated testing into the deployment pipeline and reducing upgrade cycle durations by 60%. ) Tj
+/F1 9.60 Tf (Served as primary technical delivery lead for a Fortune 500 enterprise client, leading architectural touchpoints to ) Tj
+/F1 9.60 Tf (align product roadmaps, build custom client features, and maintain platform reliability. Acted as subject-matter ) Tj
+/F1 9.60 Tf (expert for client developer teams, unblocking their project work and advising on third-party API integrations. ) Tj
+/F1 9.60 Tf (Used PowerShell and scripting for install, configuration and upgrade tasks, automating manual steps to reduce ) Tj
+/F1 9.60 Tf (repetitive hands-on work. Supported a mobile app rollout on iOS devices, troubleshooting MDM configuration and ) Tj
+/F1 9.60 Tf (monitoring endpoint health in Azure. ) Tj
+/F1 9.60 Tf (Facilitated onboarding and document/data migrations for enterprise accounts. Created and maintained knowledge ) Tj
+/F1 9.60 Tf (base articles, runbooks and troubleshooting playbooks. Built proof-of-concept environments for prospects during ) Tj
+/F1 9.60 Tf (pre-sales and walked customer teams through product demos tailored to the features they were evaluating. ) Tj
+/F2 14.00 Tf (Independent Technical Consultant \(2018 to present\) ) Tj
+/F1 9.60 Tf (Delivered custom React and TypeScript integrations and REST/SOAP based API solutions for clients with ) Tj
+/F1 9.60 Tf (specialized data workflows, including pharmaceutical and enterprise IT clients, through full dev-to-prod cycles. ) Tj
+/F1 9.60 Tf (Supported critical IT infrastructure for LSNE/PCI Pharma during a large-scale Active Directory migration, ) Tj
+/F1 9.60 Tf (maintaining operational uptime, resolving complex technical escalations, and troubleshooting TCP/IP connectivity ) Tj
+/F1 9.60 Tf (during the domain migration. ) Tj
+/F1 9.60 Tf (Leveraged agentic coding tools to prototype product architectures, evaluate system tradeoffs and build bespoke ) Tj
+/F1 9.60 Tf (technical tools at high velocity. ) Tj
+/F2 14.00 Tf (Projects ) Tj
+/F1 9.60 Tf (Enterprise Knowledge and Support Copilot. A production dual-engine RAG copilot deployed on Render and ) Tj
+/F1 9.60 Tf (Supabase. Gemini is the default generation path and an environment flag switches to local Ollama when ) Tj
+/F1 9.60 Tf (available, with automatic fallback to Gemini when the local path is slow or unreachable, so the service keeps ) Tj
+/F1 9.60 Tf (answering through an outage. Vector storage in PostgreSQL with pgvector using cosine similarity over ) Tj
+/F1 9.60 Tf (768-dimension embeddings. Every answer returns its source chunks, so responses are verifiable rather than ) Tj
+/F1 9.60 Tf (opaque. ) Tj
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 2445 >>
+stream
+/F1 9.60 Tf (Voxal Analytics Dashboard. A voice- and text-driven analytics dashboard where a question asked out loud or ) Tj
+/F1 9.60 Tf (typed is parsed into a live chart. Supports CSV upload for arbitrary datasets with dynamic schema inference and ) Tj
+/F1 9.60 Tf (query-to-chart mapping built from scratch. ) Tj
+/F1 9.60 Tf (Printmeasure 3D Model Inspector. A React tool that computes volume, length and material estimates from OBJ ) Tj
+/F1 9.60 Tf (and STL files for pre-print inspection, replicating core slicer functionality including shape recognition and filament ) Tj
+/F1 9.60 Tf (analysis. ) Tj
+/F2 14.00 Tf (Technical skills ) Tj
+/F1 9.60 Tf (Languages: Python, C# \(.NET\), JavaScript, TypeScript, SQL, KQL, Lua, PostgreSQL, PowerShell, Bash. ) Tj
+/F1 9.60 Tf (Frontend: React, Next.js, HTML, CSS, Material UI, responsive mobile-first design, accessibility \(WCAG\). ) Tj
+/F1 9.60 Tf (Cloud and platform: Azure Cloud Infrastructure, Azure Front Door with reverse proxy and WAF, Azure DevOps ) Tj
+/F1 9.60 Tf (CI/CD, automated testing within the deployment pipeline, Docker containerization, Kubernetes fundamentals, ) Tj
+/F1 9.60 Tf (Linux, Windows. ) Tj
+/F1 9.60 Tf (AI and data: Azure OpenAI \(GPT-4.5, DALL-E\), Azure AI Search, RAG pipelines, vector embeddings, pgvector, ) Tj
+/F1 9.60 Tf (dual-engine model orchestration with fallback. ) Tj
+/F1 9.60 Tf (APIs and integration: REST APIs, GraphQL, webhooks, Microsoft Graph API, Okta SSO/OAuth, Active Directory ) Tj
+/F1 9.60 Tf (domain migrations, XML/SOAP, TCP/IP. ) Tj
+/F1 9.60 Tf (Practices: SOC 2 and GDPR security and data privacy frameworks, identity and access management, knowledge ) Tj
+/F1 9.60 Tf (base articles, runbooks, troubleshooting playbooks. ) Tj
+/F2 14.00 Tf (Earlier role ) Tj
+/F1 9.60 Tf (Operations Manager, UBREAKIFIX \(2020 to 2021\). Managed daily service operations and implemented Jira ) Tj
+/F1 9.60 Tf (ticketing workflows to track recurring incidents and prioritise repair tasks, increasing technical service revenue by ) Tj
+/F1 9.60 Tf (48%. ) Tj
+/F2 14.00 Tf (Education and certifications ) Tj
+/F1 9.60 Tf (Bachelor of Science, Chemical and Process Engineering, Yalova University. ) Tj
+/F1 9.60 Tf (Associate of Science, Information and Technology, Monroe Community College. ) Tj
+/F1 9.60 Tf (Foundational C# Certification, FreeCodeCamp and Microsoft, 2026. Front-end Development Libraries ) Tj
+/F1 9.60 Tf (Certification, FreeCodeCamp, 2026. ) Tj
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000462 00000 n 
+0000006051 00000 n 
+0000006193 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+8690
+%%EOF
