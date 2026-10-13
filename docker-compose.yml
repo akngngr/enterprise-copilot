@@ -4,12 +4,17 @@ services:
     container_name: copilot_postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: copilot_db
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d copilot_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     restart: always
 
   copilot_app:
@@ -19,15 +24,22 @@ services:
       - "8000:8000"
       - "8501:8501"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/copilot_db
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/copilot_db
       - OLLAMA_BASE_URL=http://localhost:11434
       - GEN_MODEL=llama3
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - ENABLE_OLLAMA_PULL=${ENABLE_OLLAMA_PULL:-true}
+      - OIDC_ISSUER=${OIDC_ISSUER:?OIDC_ISSUER is required}
+      - OIDC_AUDIENCE=${OIDC_AUDIENCE:?OIDC_AUDIENCE is required}
+      - OIDC_JWKS_URL=${OIDC_JWKS_URL:-}
+      - OIDC_ALGORITHMS=${OIDC_ALGORITHMS:-RS256}
+      - MAX_UPLOAD_BYTES=${MAX_UPLOAD_BYTES:-26214400}
     volumes:
       - ollama_data:/root/.ollama
+      - ./.streamlit/secrets.toml:/app/.streamlit/secrets.toml:ro
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     restart: always
 
 volumes:

@@ -1,18 +1,78 @@
-import streamlit as st
-import requests
 import os
+import time
+from urllib.parse import urlparse
 
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+import requests
+import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv()
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
+api_url = urlparse(API_BASE_URL)
+if not api_url.hostname or (
+    api_url.scheme != "https"
+    and api_url.hostname not in {"localhost", "127.0.0.1", "::1"}
+):
+    raise RuntimeError("API_BASE_URL must use HTTPS outside local development")
 
 st.set_page_config(
     page_title="Enterprise Copilot",
     page_icon="⚡",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# Tailwind-inspired CSS injection for a sleek, React/SaaS aesthetic
-st.markdown("""
+if not st.user.is_logged_in:
+    st.title("Enterprise Copilot")
+    st.write("Sign in to access your private knowledge context.")
+    if st.button("Sign in", type="primary"):
+        st.login()
+    st.stop()
+
+user_info = st.user.to_dict()
+expires_at = user_info.get("exp")
+if expires_at and time.time() >= float(expires_at):
+    st.logout()
+    st.stop()
+
+try:
+    id_token = st.user.tokens["id"]
+except KeyError:
+    st.error("The identity provider did not return an ID token.")
+    st.stop()
+
+subject = user_info.get("sub")
+if not isinstance(subject, str) or not subject:
+    st.error("The identity provider did not return a user subject.")
+    st.logout()
+    st.stop()
+
+if st.session_state.get("context_owner") != subject:
+    st.session_state.context_owner = subject
+    st.session_state.messages = []
+
+AUTH_HEADERS = {"Authorization": f"Bearer {id_token}"}
+
+
+def api_request(method: str, path: str, **kwargs):
+    return requests.request(
+        method,
+        f"{API_BASE_URL}{path}",
+        headers=AUTH_HEADERS,
+        timeout=120,
+        **kwargs,
+    )
+
+
+def response_detail(response) -> str:
+    try:
+        return response.json().get("detail", response.text)
+    except ValueError:
+        return response.text
+
+
+st.markdown(
+    """
     <style>
         .stApp {
             background-color: #0e1117;
@@ -46,52 +106,137 @@ st.markdown("""
             border: 1px solid #30363d;
         }
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
-# Sleek SaaS Header Component
-st.markdown("""
+st.markdown(
+    """
     <div class="app-header">
         <div>
             <h2 style="margin: 0; font-size: 1.5rem; font-weight: 600; color: #ffffff;">⚡ Enterprise Copilot</h2>
             <p style="margin: 0; font-size: 0.85rem; color: #8b949e;">Secure RAG Intelligence & Knowledge Engine</p>
         </div>
     </div>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
-# Sidebar Design
 with st.sidebar:
     st.markdown("### 🎛️ Control Center")
-    
+    st.caption(f"Signed in as {user_info.get('email', subject)}")
+
+    # Probe /health, not /docs. /docs answers whenever uvicorn is alive, so it
+    # reported "Online" through a dead database. /health checks the database and
+    # the generator, and returns 503 when either is down.
+    api_state = "Offline"
+    api_note = "Disconnected"
     try:
-        requests.get(f"{API_BASE_URL}/docs", timeout=2)
-        st.metric(label="API Gateway", value="Online", delta="Operational")
-    except Exception:
-        st.metric(label="API Gateway", value="Offline", delta="Disconnected", delta_color="inverse")
+        probe = requests.get(f"{API_BASE_URL}/health", timeout=5)
+        report = probe.json()
+        if report.get("status") == "ok":
+            api_state, api_note = "Online", "Operational"
+        else:
+            broken = [
+                name
+                for name in ("database", "generator")
+                if report.get(name, {}).get("status") == "error"
+            ]
+            api_state = "Degraded"
+            api_note = f"{', '.join(broken)} unreachable"
+    except (requests.RequestException, ValueError):
+        pass
+
+    st.metric(
+        label="API Gateway",
+        value=api_state,
+        delta=api_note,
+        delta_color="normal" if api_state == "Online" else "inverse",
+    )
 
     st.divider()
-    
     st.markdown("### 📂 Data Ingestion")
-    uploaded_file = st.file_uploader("Upload PDF Reference", type=["pdf"], label_visibility="collapsed")
+    uploaded_file = st.file_uploader(
+        "Upload PDF Reference",
+        type=["pdf"],
+        label_visibility="collapsed",
+    )
 
-    if uploaded_file is not None:
-        if st.button("🚀 Ingest & Vectorize", use_container_width=True):
-            with st.spinner("Processing document chunks..."):
-                try:
-                    files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
-                    response = requests.post(f"{API_BASE_URL}/ingest/", files=files)
-                    if response.status_code == 200:
-                        st.success(f"Indexed: {uploaded_file.name}")
-                    else:
-                        st.error(f"Error: {response.json().get('detail', response.text)}")
-                except Exception as e:
-                    st.error(f"Connection failed: {str(e)}")
+    if uploaded_file is not None and st.button(
+        "🚀 Ingest & Vectorize",
+        use_container_width=True,
+    ):
+        with st.spinner("Processing document chunks..."):
+            try:
+                files = {
+                    "file": (
+                        uploaded_file.name,
+                        uploaded_file.getvalue(),
+                        "application/pdf",
+                    )
+                }
+                response = api_request("POST", "/ingest/", files=files)
+                if response.status_code == 200:
+                    st.success(f"Indexed: {uploaded_file.name}")
+                else:
+                    st.error(f"Error: {response_detail(response)}")
+            except requests.RequestException as error:
+                st.error(f"Connection failed: {error}")
 
     st.divider()
-    if st.button("🗑️ Clear Session", use_container_width=True):
+    st.markdown("### 🗃️ Saved Context")
+    documents = []
+    try:
+        response = api_request("GET", "/documents/")
+        if response.status_code == 200:
+            documents = response.json()
+        else:
+            st.error(f"Error: {response_detail(response)}")
+    except requests.RequestException as error:
+        st.error(f"Connection failed: {error}")
+
+    if documents:
+        for document in documents:
+            with st.container(border=True):
+                st.write(document["source_filename"])
+                if st.button(
+                    "Delete",
+                    key=f"delete-document-{document['id']}",
+                    use_container_width=True,
+                ):
+                    response = api_request(
+                        "DELETE",
+                        f"/documents/{document['id']}",
+                    )
+                    if response.status_code == 204:
+                        st.success("Document deleted from the database")
+                        st.rerun()
+                    else:
+                        st.error(f"Error: {response_detail(response)}")
+    else:
+        st.caption("No saved documents")
+
+    st.divider()
+    if st.button("Clear Chat", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
 
-# Chat Workspace with Modern Avatars
+    if st.button(
+        "Clear Saved Context",
+        use_container_width=True,
+        disabled=not documents,
+    ):
+        response = api_request("DELETE", "/documents/")
+        if response.status_code == 200:
+            st.session_state.messages = []
+            st.success("All saved context deleted from the database")
+            st.rerun()
+        else:
+            st.error(f"Error: {response_detail(response)}")
+
+    if st.button("Log out", use_container_width=True):
+        st.logout()
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
@@ -109,13 +254,13 @@ if prompt := st.chat_input("Ask anything about your internal knowledge base...")
         with st.spinner("Retrieving context & synthesizing response..."):
             try:
                 history_payload = [
-                    {"role": msg["role"], "content": msg["content"]}
-                    for msg in st.session_state.messages[:-1]
+                    {"role": message["role"], "content": message["content"]}
+                    for message in st.session_state.messages[:-1]
                 ]
-
-                response = requests.post(
-                    f"{API_BASE_URL}/ask/", 
-                    json={"question": prompt, "history": history_payload}
+                response = api_request(
+                    "POST",
+                    "/ask/",
+                    json={"question": prompt, "history": history_payload},
                 )
 
                 if response.status_code == 200:
@@ -127,14 +272,19 @@ if prompt := st.chat_input("Ask anything about your internal knowledge base...")
 
                     if sources:
                         with st.expander("🔗 Verified Knowledge Sources"):
-                            for idx, src in enumerate(sources):
-                                st.markdown(f"**[{idx+1}] {src['source_filename']}** (Chunk {src['chunk_index']})")
-                                st.caption(f"Relevance Score: {src['similarity']:.2f}")
-                                st.code(src['content'], language="text")
+                            for index, source in enumerate(sources):
+                                st.markdown(
+                                    f"**[{index + 1}] {source['source_filename']}** "
+                                    f"(Chunk {source['chunk_index']})"
+                                )
+                                st.caption(f"Relevance Score: {source['similarity']:.2f}")
+                                st.code(source["content"], language="text")
                                 st.divider()
 
-                    st.session_state.messages.append({"role": "assistant", "content": answer})
+                    st.session_state.messages.append(
+                        {"role": "assistant", "content": answer}
+                    )
                 else:
-                    st.error(f"Error: {response.json().get('detail', response.text)}")
-            except Exception as e:
-                st.error(f"Network error: {e}")
+                    st.error(f"Error: {response_detail(response)}")
+            except requests.RequestException as error:
+                st.error(f"Network error: {error}")

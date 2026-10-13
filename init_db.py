@@ -1,10 +1,11 @@
-from app.database import engine, Base
-from app.models import DocumentChunk
+from alembic import command
+from alembic.config import Config
 
-def init_db():
-    print("Creating database tables...")
-    Base.metadata.create_all(bind=engine)
-    print("Tables created successfully.")
+
+def init_db() -> None:
+    config = Config("alembic.ini")
+    command.upgrade(config, "head")
+
 
 if __name__ == "__main__":
     init_db()

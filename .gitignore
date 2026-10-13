@@ -1,6 +1,7 @@
 # Secrets & Environment Variables
 .env
 *.env
+.streamlit/secrets.toml
 
 # Virtual Environment
 venv/

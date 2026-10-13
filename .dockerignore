@@ -1,0 +1,10 @@
+.git
+.env
+*.env
+.streamlit
+venv
+__pycache__
+*.pyc
+.pytest_cache
+tests
+*.pdf

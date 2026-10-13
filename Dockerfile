@@ -1,6 +1,7 @@
 FROM python:3.10-slim
 
 WORKDIR /app
+RUN mkdir -p /app/.streamlit
 
 # Install system dependencies, curl, and zstd (required for Ollama installation)
 RUN apt-get update && apt-get install -y \
