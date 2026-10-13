@@ -2,7 +2,7 @@
   <img src="docs/screenshot.webp" alt="The copilot's chat interface, showing the welcome panel, starter questions, the seeded profile document and a healthy API Gateway" width="900">
 </p>
 
-# Enterprise Knowledge & Support Copilot
+# Enterprise Knowledge Copilot
 
 A multi-tenant Retrieval-Augmented Generation (RAG) copilot that answers questions grounded in uploaded documents and returns the exact source chunks behind every claim.
 

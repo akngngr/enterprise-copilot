@@ -35,7 +35,7 @@ git add seed/profile.pdf
 Every claim in `profile-source.md` comes from the candidate's primary files:
 
 - `cv.md` — Akin Gungor — CV Library
-- `article-digest.md` — Enterprise Knowledge & Support Copilot
+- `article-digest.md` — Enterprise Knowledge Copilot
 
 Do not add a claim here that is not in those files. **If a metric changes in
 `cv.md`, change it here in the same pass**, or the copilot will confidently

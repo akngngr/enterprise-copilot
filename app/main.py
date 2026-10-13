@@ -19,7 +19,7 @@ from app.ingest import get_embedding, process_pdf
 from app.models import Document, DocumentChunk
 from app.seed import drop_seed, ensure_seed_document
 
-app = FastAPI(title="Enterprise Knowledge & Support Copilot", version="2.0.0")
+app = FastAPI(title="Enterprise Knowledge Copilot", version="2.0.0")
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_GEN_URL = f"{OLLAMA_BASE_URL}/api/generate"
