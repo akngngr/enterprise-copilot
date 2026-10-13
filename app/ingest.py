@@ -2,6 +2,7 @@ import io
 import math
 import os
 import requests
+import time
 from pypdf import PdfReader
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -22,31 +23,80 @@ MAX_CHUNKS_PER_DOCUMENT = int(os.getenv("MAX_CHUNKS_PER_DOCUMENT", "10000"))
 
 ENABLE_OLLAMA_PULL = os.getenv("ENABLE_OLLAMA_PULL", "false").lower() == "true"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+EMBED_MAX_ATTEMPTS = max(1, int(os.getenv("EMBED_MAX_ATTEMPTS", "3")))
+EMBED_BACKOFF_SECONDS = float(os.getenv("EMBED_BACKOFF_SECONDS", "1.5"))
+# 429/500/502/503/504 are worth another attempt; 400/401/403 are not.
+TRANSIENT_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+
+
+def is_transient(error: Exception) -> bool:
+    """Transient = worth retrying. Auth and prompt errors are not.
+
+    Keyed on the status code rather than the exception name: the Gemini SDK
+    raises ClientError for a rate limit as readily as for a bad request, and
+    treating a 429 as fatal is what makes ingest fail under load.
+    """
+    status = getattr(error, "code", None)
+    if status is None:
+        status = getattr(error, "status_code", None)
+    if status is not None:
+        try:
+            return int(status) in TRANSIENT_STATUS_CODES
+        except (TypeError, ValueError):
+            pass
+    return type(error).__name__ in {
+        "ServerError",
+        "ServiceUnavailable",
+        "RateLimitError",
+        "ResourceExhausted",
+    }
 
 # Initialize Gemini Client if API key is present
 gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 
 def get_gemini_embedding(text: str) -> list:
-    """Generates 768-dim embeddings using Gemini API (gemini-embedding-001)."""
+    """Generates 768-dim embeddings using Gemini API (gemini-embedding-001).
+
+    Retries transient upstream failures. Ingest embeds one call per chunk in a
+    tight loop, so a document of any length multiplies the chance of hitting a
+    rate limit or a 503 partway through - and a failure at chunk 11 of 12 throws
+    away the whole document. Generation got this treatment already; embeddings
+    did not, and that asymmetry is what made ingest the fragile endpoint.
+    """
     if not gemini_client:
         raise ValueError("GEMINI_API_KEY environment variable is not configured.")
-    
-    # Notice: model="gemini-embedding-001" and output_dimensionality=768
-    response = gemini_client.models.embed_content(
-        model=GEMINI_EMBEDDING_MODEL,
-        contents=text,
-        config=EmbedContentConfig(
-            output_dimensionality=768
-        )
-    )
-    
-    if hasattr(response, "embedding") and hasattr(response.embedding, "values"):
-        return validate_embedding(list(response.embedding.values))
-    if hasattr(response, "embeddings") and len(response.embeddings) > 0:
-        return validate_embedding(list(response.embeddings[0].values))
 
-    raise ValueError("Failed to retrieve valid embedding values from Gemini API.")
+    last_error: Exception | None = None
+    for attempt in range(1, EMBED_MAX_ATTEMPTS + 1):
+        try:
+            # model="gemini-embedding-001" with output_dimensionality=768
+            response = gemini_client.models.embed_content(
+                model=GEMINI_EMBEDDING_MODEL,
+                contents=text,
+                config=EmbedContentConfig(output_dimensionality=768),
+            )
+
+            if hasattr(response, "embedding") and hasattr(response.embedding, "values"):
+                return validate_embedding(list(response.embedding.values))
+            if hasattr(response, "embeddings") and len(response.embeddings) > 0:
+                return validate_embedding(list(response.embeddings[0].values))
+
+            raise ValueError("Failed to retrieve valid embedding values from Gemini API.")
+        except Exception as error:  # noqa: BLE001 - upstream raises SDK types
+            last_error = error
+            if not is_transient(error):
+                raise
+            if attempt < EMBED_MAX_ATTEMPTS:
+                delay = EMBED_BACKOFF_SECONDS * (2 ** (attempt - 1))
+                print(
+                    f"[Embedding] attempt {attempt}/{EMBED_MAX_ATTEMPTS} failed "
+                    f"({type(error).__name__}); retrying in {delay}s."
+                )
+                time.sleep(delay)
+
+    assert last_error is not None
+    raise last_error
 
 
 def validate_embedding(vector) -> list:

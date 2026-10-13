@@ -298,6 +298,11 @@ def ingest_document(
     except HTTPException:
         raise
     except Exception as error:
+        # Log the real cause. Without this the response is a bare "Document
+        # ingestion failed": a transient upstream 503 and a schema bug look
+        # identical from outside, and ingest was previously the one endpoint
+        # that swallowed its cause.
+        print(f"[ingest] {original_filename!r} failed: {type(error).__name__}: {error}")
         raise HTTPException(status_code=500, detail="Document ingestion failed") from error
 
 
