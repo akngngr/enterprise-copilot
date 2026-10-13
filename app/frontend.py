@@ -156,6 +156,10 @@ with st.sidebar:
 
     st.divider()
     st.markdown("### 📂 Data Ingestion")
+    st.caption(
+        "Your workspace. Uploading a PDF replaces the default profile, and it "
+        "stays private to your account."
+    )
     uploaded_file = st.file_uploader(
         "Upload PDF Reference",
         type=["pdf"],
@@ -240,12 +244,61 @@ with st.sidebar:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
+WELCOME = """👋 **Welcome — this is a retrieval-augmented copilot.**
+
+Every answer is generated **only** from documents in your own workspace, and
+every reply cites the exact source chunks it used, so you can check any claim
+against its origin.
+
+**Two ways to start:**
+
+1. **Ask about Akin.** A profile document is already loaded in your workspace.
+   Ask anything about his experience, the systems he has built, or the
+   measurable results.
+2. **Bring your own document.** Upload a PDF from the sidebar and it replaces
+   the default profile — your document becomes the only thing this copilot can
+   answer from.
+
+---
+
+🔒 **On privacy:** this app is behind Google sign-in, and every document,
+every chunk and every retrieval query is scoped to your authenticated account.
+What you upload is not visible to anyone else using this instance. That is
+enforced in the API rather than in this interface, and it is covered by tests.
+"""
+
+STARTER_QUESTIONS = [
+    "What does Akin Gungor specialise in?",
+    "What measurable results are documented?",
+    "Which cloud and AI services does he work with?",
+    "Describe the RAG system he built at Akumina",
+]
+
+if not st.session_state.messages:
+    with st.chat_message("assistant", avatar="✨"):
+        st.markdown(WELCOME)
+        st.caption("Try one of these:")
+        for index, question in enumerate(STARTER_QUESTIONS):
+            if st.button(
+                question,
+                key=f"starter-{index}",
+                use_container_width=False,
+            ):
+                st.session_state.pending_prompt = question
+                st.rerun()
+
 for message in st.session_state.messages:
     avatar = "👤" if message["role"] == "user" else "✨"
     with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("Ask anything about your internal knowledge base..."):
+# A starter button sets pending_prompt and reruns; drain it here so the same
+# question runs through exactly one code path as a typed one.
+prompt = st.session_state.pop("pending_prompt", None)
+if not prompt:
+    prompt = st.chat_input("Ask a question, or upload your own PDF from the sidebar...")
+
+if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user", avatar="👤"):
         st.markdown(prompt)
