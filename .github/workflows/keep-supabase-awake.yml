@@ -1,0 +1,59 @@
+name: Keep Supabase awake
+
+# Supabase pauses Free-plan projects after 7 days of low API activity. This job
+# connects to Postgres directly so the project never reaches that threshold.
+#
+# Why NOT the deployed app's /health endpoint:
+#   Render's free web service exposes ONE port, and this one is Streamlit (8501).
+#   Every public path - /health, /docs, anything - returns Streamlit's HTML shell
+#   with HTTP 200. FastAPI runs on internal port 8000 and is never publicly
+#   routed. A cron pointed at the app URL would return 200 every day, report
+#   success, and never once reach the database. Verified against the live host.
+#
+# Talking to Postgres is also the more robust target: it does not depend on Render
+# being awake, and a cold Render container cannot cause a false all-clear.
+#
+# What this does NOT protect against:
+#   - data loss. The Free plan retains zero backups; this proves the database is
+#     reachable, it never copies anything.
+#   - project deletion (a separate path, with its own 90-day restore window).
+#
+# Setup: add DATABASE_URL as a repository secret
+#   github.com/akngngr/enterprise-copilot -> Settings -> Secrets and variables
+#   -> Actions -> New repository secret.
+#   Value: the Transaction pooler string from Supabase -> Project Settings ->
+#   Database -> Connection string (URI), port 6543, scheme postgresql://.
+#   The same value belongs in Render's environment variables and your local .env.
+#
+# Run it locally to check the secret is right:
+#   DATABASE_URL='postgresql://...' python3 scripts/db_heartbeat.py
+
+on:
+  schedule:
+    # Daily at 04:17 UTC. The odd minute is deliberate: the top of the hour is the
+    # most contended slot on GitHub's shared cron, and runs get dropped when the
+    # runners are busy.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-supabase-awake
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install database driver
+        run: python3 -m pip install --quiet --disable-pip-version-check psycopg2-binary
+
+      - name: Check database is reachable
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python3 scripts/db_heartbeat.py

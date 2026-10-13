@@ -1,0 +1,99 @@
+name: CI
+
+# Why this exists: the four cross-tenant isolation tests in
+# tests/test_context_api.py are the only thing that verifies documents cannot
+# leak between users, and every one of them skips without TEST_DATABASE_URL.
+# On a laptop with no database configured they simply do not run, so the
+# isolation could regress silently. The pgvector service container below makes
+# them run on every push.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: copilot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d copilot_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # conftest.py refuses any database whose name does not contain "test".
+      TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/copilot_test
+      ENABLE_OLLAMA_PULL: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Sanity-check the container entrypoint
+        # entrypoint.sh runs on every deploy and a syntax error there means a
+        # container that never boots. Cheap to catch here instead.
+        run: bash -n entrypoint.sh
+
+      - name: Run the test suite
+        run: python -m pytest -v --tb=short
+
+      - name: Verify the OIDC algorithm allowlist matches the provider
+        # The JWKS is the source of truth. If the provider rotates to a new
+        # algorithm, OIDC_ALGORITHMS must follow or every token fails.
+        # Only runs when the OIDC_* variables are set as repository variables.
+        if: ${{ vars.OIDC_JWKS_URL != '' }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request
+
+          url = os.environ["OIDC_JWKS_URL"]
+          with urllib.request.urlopen(url, timeout=20) as response:
+              keys = json.load(response)["keys"]
+
+          published = {key["alg"] for key in keys if "alg" in key}
+          allowed = set(
+              part.strip()
+              for part in os.environ.get("OIDC_ALGORITHMS", "RS256").split(",")
+              if part.strip()
+          )
+          print(f"provider publishes : {sorted(published)}")
+          print(f"OIDC_ALGORITHMS    : {sorted(allowed)}")
+
+          missing = published - allowed
+          if missing:
+              raise SystemExit(
+                  f"OIDC_ALGORITHMS does not allow {sorted(missing)}; "
+                  "every token verification would fail."
+              )
+          print("OK: provider algorithms are permitted")
+          PY
